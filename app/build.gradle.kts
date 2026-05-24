@@ -89,6 +89,12 @@ dependencies {
     // Navigation
     implementation(libs.androidx.navigation.compose)
     
+    // Phase 2: Maps, WebSocket, Image Loading
+    implementation(libs.osmdroid)
+    implementation(libs.websocket)
+    implementation(libs.coil.compose)
+    implementation(libs.play.services.location)
+    
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

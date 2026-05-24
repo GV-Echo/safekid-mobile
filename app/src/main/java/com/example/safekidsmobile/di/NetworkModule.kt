@@ -3,10 +3,14 @@ package com.example.safekidsmobile.di
 import android.content.Context
 import com.example.safekidsmobile.data.api.AuthApiService
 import com.example.safekidsmobile.data.api.AuthInterceptor
+import com.example.safekidsmobile.data.api.DeviceApiService
+import com.example.safekidsmobile.data.api.LocationApiService
+import com.example.safekidsmobile.data.api.MockAuthApiService
+import com.example.safekidsmobile.data.api.MockDeviceApiService
+import com.example.safekidsmobile.data.api.MockLocationApiService
 import com.example.safekidsmobile.data.api.TokenAuthenticator
 import com.example.safekidsmobile.data.manager.TokenManager
-// Добавлен импорт для заглушки (проверьте, совпадает ли путь в вашем проекте):
-import com.example.safekidsmobile.data.api.MockAuthApiService
+import com.example.safekidsmobile.data.websocket.WebSocketLocationService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -82,6 +86,18 @@ object NetworkModule {
     @Singleton
     fun provideAuthApiService(retrofit: Retrofit): AuthApiService {
         return MockAuthApiService()
+    }
+
+    @Provides
+    @Singleton
+    fun provideDeviceApiService(retrofit: Retrofit): DeviceApiService {
+        return MockDeviceApiService()
+    }
+
+    @Provides
+    @Singleton
+    fun provideLocationApiService(retrofit: Retrofit): LocationApiService {
+        return MockLocationApiService()
     }
 
     @Provides
