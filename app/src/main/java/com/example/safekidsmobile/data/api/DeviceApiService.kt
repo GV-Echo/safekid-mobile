@@ -1,16 +1,18 @@
 package com.example.safekidsmobile.data.api
 
+import com.example.safekidsmobile.data.model.Device
 import com.example.safekidsmobile.data.model.DeviceListResponse
-import com.example.safekidsmobile.data.model.LocationHistoryResponse
-import com.example.safekidsmobile.data.model.PairDeviceRequest
-import com.example.safekidsmobile.data.model.PairDeviceResponse
+import com.example.safekidsmobile.data.model.LinkDeviceRequest
+import com.example.safekidsmobile.data.model.LinkDeviceResponse
+import com.example.safekidsmobile.data.model.LocationData
+import com.example.safekidsmobile.data.model.LocationListResponse
 import com.example.safekidsmobile.data.model.UpdateDeviceSettingsRequest
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
-import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -18,30 +20,34 @@ interface DeviceApiService {
     @GET("devices")
     suspend fun listDevices(): Response<DeviceListResponse>
 
-    @POST("devices/pair")
-    suspend fun pairDevice(@Body request: PairDeviceRequest): Response<PairDeviceResponse>
+    @POST("devices/link")
+    suspend fun linkDevice(@Body request: LinkDeviceRequest): Response<LinkDeviceResponse>
 
     @GET("devices/{device_id}")
-    suspend fun getDevice(@Path("device_id") deviceId: String): Response<com.example.safekidsmobile.data.model.Device>
+    suspend fun getDevice(@Path("device_id") deviceId: String): Response<Device>
 
-    @PUT("devices/{device_id}/settings")
+    @PATCH("devices/{device_id}")
     suspend fun updateDeviceSettings(
         @Path("device_id") deviceId: String,
         @Body request: UpdateDeviceSettingsRequest
-    ): Response<Map<String, Boolean>>
+    ): Response<Device>
 
     @DELETE("devices/{device_id}")
-    suspend fun unpairDevice(@Path("device_id") deviceId: String): Response<Map<String, Boolean>>
+    suspend fun unpairDevice(@Path("device_id") deviceId: String): Response<Unit>
 }
 
 interface LocationApiService {
-    @GET("locations")
+    @GET("location/{device_id}/history")
     suspend fun getLocationHistory(
-        @Query("device_id") deviceId: String,
-        @Query("start_date") startDate: String,
-        @Query("end_date") endDate: String
-    ): Response<LocationHistoryResponse>
+        @Path("device_id") deviceId: String,
+        @Query("from") from: String,
+        @Query("to") to: String,
+        @Query("limit") limit: Int = 200
+    ): Response<LocationListResponse>
 
-    @GET("devices/{device_id}/location")
-    suspend fun getCurrentLocation(@Path("device_id") deviceId: String): Response<com.example.safekidsmobile.data.model.LocationData>
+    @GET("location/{device_id}/current")
+    suspend fun getCurrentLocation(@Path("device_id") deviceId: String): Response<LocationData>
+
+    @POST("location/{device_id}/request")
+    suspend fun requestLocation(@Path("device_id") deviceId: String): Response<Unit>
 }

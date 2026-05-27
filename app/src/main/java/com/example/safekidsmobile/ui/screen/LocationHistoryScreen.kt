@@ -204,13 +204,13 @@ fun LocationHistoryItem(location: LocationData) {
             ) {
                 Column {
                     Text(
-                        text = "📍 ${String.format("%.4f, %.4f", location.lat, location.lon)}",
+                        text = "📍 ${String.format("%.4f, %.4f", location.lat, location.lng)}",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = PrimaryBlue
                     )
                     Text(
-                        text = location.timestamp,
+                        text = location.recordedAt,
                         fontSize = 12.sp,
                         color = Color.Gray
                     )

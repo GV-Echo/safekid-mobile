@@ -13,22 +13,21 @@ data class LoginRequest(
 data class RegisterRequest(
     val email: String,
     val password: String,
-    @SerialName("full_name")
-    val fullName: String
+    val name: String
 )
 
 @Serializable
-data class AuthResponse(
+data class LoginResponse(
+    @SerialName("access_token") val accessToken: String,
+    @SerialName("refresh_token") val refreshToken: String,
+    @SerialName("expires_in") val expiresIn: Int = 3600
+)
+
+@Serializable
+data class RegisterResponse(
     val id: String,
     val email: String,
-    @SerialName("full_name")
-    val fullName: String,
-    @SerialName("access_token")
-    val accessToken: String,
-    @SerialName("refresh_token")
-    val refreshToken: String,
-    @SerialName("expires_in")
-    val expiresIn: Int = 3600
+    val name: String
 )
 
 @Serializable

@@ -2,7 +2,6 @@ package com.example.safekidsmobile.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.safekidsmobile.data.model.AuthResponse
 import com.example.safekidsmobile.data.repository.AuthRepository
 import com.example.safekidsmobile.data.repository.AuthResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,7 +14,6 @@ import javax.inject.Inject
 data class AuthUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
-    val authResponse: AuthResponse? = null,
     val isSuccess: Boolean = false
 )
 
@@ -32,84 +30,39 @@ class AuthViewModel @Inject constructor(
 
     fun login(email: String, password: String) {
         if (email.isEmpty() || password.isEmpty()) {
-            _loginState.value = _loginState.value.copy(
-                error = "Email and password are required",
-                isLoading = false
-            )
+            _loginState.value = _loginState.value.copy(error = "Email and password are required")
             return
         }
-
         viewModelScope.launch {
-            _loginState.value = _loginState.value.copy(isLoading = true, error = null)
-            val result = authRepository.login(email, password)
-
-            when (result) {
-                is AuthResult.Success -> {
-                    _loginState.value = AuthUiState(
-                        isSuccess = true,
-                        authResponse = result.response
-                    )
-                }
-                is AuthResult.Error -> {
-                    _loginState.value = _loginState.value.copy(
-                        isLoading = false,
-                        error = result.message
-                    )
-                }
-                else -> {}
+            _loginState.value = AuthUiState(isLoading = true)
+            _loginState.value = when (val result = authRepository.login(email, password)) {
+                is AuthResult.Success -> AuthUiState(isSuccess = true)
+                is AuthResult.Error  -> AuthUiState(error = result.message)
             }
         }
     }
 
     fun register(email: String, password: String, fullName: String) {
         if (email.isEmpty() || password.isEmpty() || fullName.isEmpty()) {
-            _registerState.value = _registerState.value.copy(
-                error = "All fields are required",
-                isLoading = false
-            )
+            _registerState.value = _registerState.value.copy(error = "All fields are required")
             return
         }
-
         if (password.length < 6) {
-            _registerState.value = _registerState.value.copy(
-                error = "Password must be at least 6 characters",
-                isLoading = false
-            )
+            _registerState.value = _registerState.value.copy(error = "Password must be at least 6 characters")
             return
         }
-
         viewModelScope.launch {
-            _registerState.value = _registerState.value.copy(isLoading = true, error = null)
-            val result = authRepository.register(email, password, fullName)
-
-            when (result) {
-                is AuthResult.Success -> {
-                    _registerState.value = AuthUiState(
-                        isSuccess = true,
-                        authResponse = result.response
-                    )
-                }
-                is AuthResult.Error -> {
-                    _registerState.value = _registerState.value.copy(
-                        isLoading = false,
-                        error = result.message
-                    )
-                }
-                else -> {}
+            _registerState.value = AuthUiState(isLoading = true)
+            _registerState.value = when (val result = authRepository.register(email, password, fullName)) {
+                is AuthResult.Success -> AuthUiState(isSuccess = true)
+                is AuthResult.Error  -> AuthUiState(error = result.message)
             }
         }
     }
 
-    fun clearLoginState() {
-        _loginState.value = AuthUiState()
-    }
-
-    fun clearRegisterState() {
-        _registerState.value = AuthUiState()
-    }
-
+    fun clearLoginState() { _loginState.value = AuthUiState() }
+    fun clearRegisterState() { _registerState.value = AuthUiState() }
     fun isLoggedIn(): Boolean = authRepository.isLoggedIn()
-
     fun logout() {
         authRepository.logout()
         _loginState.value = AuthUiState()

@@ -3,8 +3,8 @@ package com.example.safekidsmobile.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.safekidsmobile.data.model.Device
+import com.example.safekidsmobile.data.model.LinkDeviceResponse
 import com.example.safekidsmobile.data.model.LocationData
-import com.example.safekidsmobile.data.model.PairDeviceResponse
 import com.example.safekidsmobile.data.repository.DeviceRepository
 import com.example.safekidsmobile.data.repository.DeviceResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,13 +24,14 @@ data class DeviceUiState(
 data class PairingUiState(
     val isPairing: Boolean = false,
     val pinInput: String = "",
+    val nameInput: String = "",
     val isSuccess: Boolean = false,
     val error: String? = null,
-    val pairedDevice: PairDeviceResponse? = null
+    val pairedDevice: LinkDeviceResponse? = null
 )
 
 data class SettingsUiState(
-    val locationIntervalMin: Int = 5,
+    val locationIntervalMin: Int = 30,
     val isSaving: Boolean = false,
     val error: String? = null,
     val isSuccess: Boolean = false
@@ -39,50 +40,39 @@ data class SettingsUiState(
 data class LocationHistoryUiState(
     val locations: List<LocationData> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null,
-    val startDate: String = "",
-    val endDate: String = ""
+    val error: String? = null
 )
 
 @HiltViewModel
 class DeviceViewModel @Inject constructor(
     private val deviceRepository: DeviceRepository
 ) : ViewModel() {
-    
+
     private val _deviceState = MutableStateFlow(DeviceUiState())
     val deviceState: StateFlow<DeviceUiState> = _deviceState.asStateFlow()
-    
+
     private val _pairingState = MutableStateFlow(PairingUiState())
     val pairingState: StateFlow<PairingUiState> = _pairingState.asStateFlow()
-    
+
     private val _settingsState = MutableStateFlow(SettingsUiState())
     val settingsState: StateFlow<SettingsUiState> = _settingsState.asStateFlow()
-    
+
     private val _locationHistoryState = MutableStateFlow(LocationHistoryUiState())
     val locationHistoryState: StateFlow<LocationHistoryUiState> = _locationHistoryState.asStateFlow()
 
-    init {
-        loadDevices()
-    }
+    init { loadDevices() }
 
     fun loadDevices() {
         viewModelScope.launch {
             _deviceState.value = _deviceState.value.copy(isLoading = true, error = null)
-            val result = deviceRepository.listDevices()
-            when (result) {
-                is DeviceResult.Success -> {
-                    _deviceState.value = _deviceState.value.copy(
-                        devices = result.data,
-                        isLoading = false,
-                        selectedDevice = result.data.firstOrNull()
-                    )
-                }
-                is DeviceResult.Error -> {
-                    _deviceState.value = _deviceState.value.copy(
-                        isLoading = false,
-                        error = result.exception.message ?: "Unknown error"
-                    )
-                }
+            when (val result = deviceRepository.listDevices()) {
+                is DeviceResult.Success -> _deviceState.value = DeviceUiState(
+                    devices = result.data,
+                    selectedDevice = result.data.firstOrNull()
+                )
+                is DeviceResult.Error -> _deviceState.value = DeviceUiState(
+                    error = result.exception.message ?: "Unknown error"
+                )
                 else -> {}
             }
         }
@@ -92,27 +82,17 @@ class DeviceViewModel @Inject constructor(
         _deviceState.value = _deviceState.value.copy(selectedDevice = device)
     }
 
-    fun pairDevice(pin: String) {
+    fun pairDevice(pin: String, name: String) {
         viewModelScope.launch {
             _pairingState.value = _pairingState.value.copy(isPairing = true, error = null, isSuccess = false)
-            val result = deviceRepository.pairDevice(pin)
-            when (result) {
+            when (val result = deviceRepository.linkDevice(pin, name)) {
                 is DeviceResult.Success -> {
-                    _pairingState.value = _pairingState.value.copy(
-                        isPairing = false,
-                        pairedDevice = result.data,
-                        isSuccess = true,
-                        pinInput = ""
-                    )
-                    // Reload device list
+                    _pairingState.value = PairingUiState(isSuccess = true, pairedDevice = result.data)
                     loadDevices()
                 }
-                is DeviceResult.Error -> {
-                    _pairingState.value = _pairingState.value.copy(
-                        isPairing = false,
-                        error = result.exception.message ?: "Pairing failed"
-                    )
-                }
+                is DeviceResult.Error -> _pairingState.value = PairingUiState(
+                    error = result.exception.message ?: "Pairing failed"
+                )
                 else -> {}
             }
         }
@@ -122,28 +102,23 @@ class DeviceViewModel @Inject constructor(
         _pairingState.value = _pairingState.value.copy(pinInput = pin)
     }
 
-    fun clearPairingState() {
-        _pairingState.value = PairingUiState()
+    fun updateNameInput(name: String) {
+        _pairingState.value = _pairingState.value.copy(nameInput = name)
     }
+
+    fun clearPairingState() { _pairingState.value = PairingUiState() }
 
     fun updateLocationInterval(deviceId: String, intervalMin: Int) {
         viewModelScope.launch {
             _settingsState.value = _settingsState.value.copy(isSaving = true, error = null, isSuccess = false)
-            val result = deviceRepository.updateDeviceSettings(deviceId, intervalMin)
-            when (result) {
-                is DeviceResult.Success -> {
-                    _settingsState.value = _settingsState.value.copy(
-                        isSaving = false,
-                        locationIntervalMin = intervalMin,
-                        isSuccess = true
-                    )
-                }
-                is DeviceResult.Error -> {
-                    _settingsState.value = _settingsState.value.copy(
-                        isSaving = false,
-                        error = result.exception.message ?: "Failed to update settings"
-                    )
-                }
+            when (val result = deviceRepository.updateDeviceSettings(deviceId, intervalMin)) {
+                is DeviceResult.Success -> _settingsState.value = SettingsUiState(
+                    locationIntervalMin = intervalMin,
+                    isSuccess = true
+                )
+                is DeviceResult.Error -> _settingsState.value = SettingsUiState(
+                    error = result.exception.message ?: "Failed to update settings"
+                )
                 else -> {}
             }
         }
@@ -152,42 +127,55 @@ class DeviceViewModel @Inject constructor(
     fun unpairDevice(deviceId: String) {
         viewModelScope.launch {
             _deviceState.value = _deviceState.value.copy(isLoading = true)
-            val result = deviceRepository.unpairDevice(deviceId)
-            when (result) {
-                is DeviceResult.Success -> {
-                    // Reload device list after unpair
-                    loadDevices()
-                }
-                is DeviceResult.Error -> {
-                    _deviceState.value = _deviceState.value.copy(
-                        isLoading = false,
-                        error = result.exception.message ?: "Failed to unpair device"
-                    )
-                }
+            when (val result = deviceRepository.unpairDevice(deviceId)) {
+                is DeviceResult.Success -> loadDevices()
+                is DeviceResult.Error -> _deviceState.value = _deviceState.value.copy(
+                    isLoading = false,
+                    error = result.exception.message ?: "Failed to unpair device"
+                )
                 else -> {}
             }
         }
     }
 
-    fun loadLocationHistory(deviceId: String, startDate: String, endDate: String) {
+    fun loadDevice(deviceId: String) {
         viewModelScope.launch {
-            _locationHistoryState.value = _locationHistoryState.value.copy(isLoading = true, error = null)
-            val result = deviceRepository.getLocationHistory(deviceId, startDate, endDate)
-            when (result) {
-                is DeviceResult.Success -> {
-                    _locationHistoryState.value = _locationHistoryState.value.copy(
-                        locations = result.data,
-                        isLoading = false,
-                        startDate = startDate,
-                        endDate = endDate
-                    )
-                }
-                is DeviceResult.Error -> {
-                    _locationHistoryState.value = _locationHistoryState.value.copy(
-                        isLoading = false,
-                        error = result.exception.message ?: "Failed to load location history"
-                    )
-                }
+            when (val result = deviceRepository.getDevice(deviceId)) {
+                is DeviceResult.Success -> _deviceState.value = _deviceState.value.copy(
+                    selectedDevice = result.data
+                )
+                else -> {}
+            }
+        }
+    }
+
+    fun loadCurrentLocation(deviceId: String) {
+        viewModelScope.launch {
+            when (val result = deviceRepository.getCurrentLocation(deviceId)) {
+                is DeviceResult.Success -> _locationHistoryState.value = LocationHistoryUiState(
+                    locations = listOf(result.data)
+                )
+                else -> {}
+            }
+        }
+    }
+
+    fun requestLocation(deviceId: String) {
+        viewModelScope.launch {
+            deviceRepository.requestLocation(deviceId)
+        }
+    }
+
+    fun loadLocationHistory(deviceId: String, from: String, to: String) {
+        viewModelScope.launch {
+            _locationHistoryState.value = LocationHistoryUiState(isLoading = true)
+            when (val result = deviceRepository.getLocationHistory(deviceId, from, to)) {
+                is DeviceResult.Success -> _locationHistoryState.value = LocationHistoryUiState(
+                    locations = result.data
+                )
+                is DeviceResult.Error -> _locationHistoryState.value = LocationHistoryUiState(
+                    error = result.exception.message ?: "Failed to load location history"
+                )
                 else -> {}
             }
         }

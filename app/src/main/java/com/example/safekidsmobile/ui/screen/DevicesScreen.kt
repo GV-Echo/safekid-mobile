@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,17 +22,21 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,7 +44,6 @@ import com.example.safekidsmobile.data.model.Device
 import com.example.safekidsmobile.ui.theme.AccentGreen
 import com.example.safekidsmobile.ui.theme.PrimaryBlue
 import com.example.safekidsmobile.ui.viewmodel.DeviceViewModel
-import androidx.compose.foundation.layout.width
 
 @Composable
 fun DevicesScreen(
@@ -51,12 +55,15 @@ fun DevicesScreen(
     val deviceState by viewModel.deviceState.collectAsState()
     var showPairDialog by remember { mutableStateOf(false) }
 
+    LaunchedEffect(Unit) {
+        viewModel.loadDevices()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF9F8F5))
     ) {
-        // Header
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -72,55 +79,33 @@ fun DevicesScreen(
             )
         }
 
-        // Content
         if (deviceState.isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = PrimaryBlue)
             }
         } else if (deviceState.error != null) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
+                modifier = Modifier.fillMaxSize().padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Error",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Error", fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = deviceState.error ?: "Unknown error",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Text(deviceState.error ?: "Unknown error", fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = { viewModel.loadDevices() }) {
-                        Text("Retry")
-                    }
+                    Button(onClick = { viewModel.loadDevices() }) { Text("Retry") }
                 }
             }
         } else {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(16.dp),
+                modifier = Modifier.fillMaxWidth().weight(1f).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(deviceState.devices) { device ->
                     DeviceCard(
                         device = device,
-                        onClick = { 
+                        onClick = {
                             viewModel.selectDevice(device)
                             onDeviceSelected(device)
                         },
@@ -130,13 +115,9 @@ fun DevicesScreen(
             }
         }
 
-        // Pair Button
         Button(
             onClick = { showPairDialog = true },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .height(48.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp).height(48.dp),
             shape = RoundedCornerShape(8.dp)
         ) {
             Text("Pair New Device", fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -146,7 +127,7 @@ fun DevicesScreen(
     if (showPairDialog) {
         PairDeviceDialog(
             onDismiss = { showPairDialog = false },
-            onPair = { 
+            onPair = {
                 showPairDialog = false
                 onPairDevice()
             },
@@ -156,51 +137,33 @@ fun DevicesScreen(
 }
 
 @Composable
-fun DeviceCard(
-    device: Device,
-    onClick: () -> Unit,
-    onUnpair: () -> Unit
-) {
+fun DeviceCard(device: Device, onClick: () -> Unit, onUnpair: () -> Unit) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        text = device.name,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = PrimaryBlue
-                    )
-                    Text(
-                        text = device.model,
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-                }
-                
-                // Status Badge
-                val statusColor = if (device.is_online) AccentGreen else Color.Gray
-                val statusText = if (device.is_online) "Online" else "Offline"
+                Text(
+                    text = device.name,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryBlue
+                )
+                val statusColor = if (device.online) AccentGreen else Color.Gray
                 Box(
                     modifier = Modifier
                         .background(statusColor.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
                         .padding(8.dp)
                 ) {
                     Text(
-                        text = statusText,
+                        text = if (device.online) "Online" else "Offline",
                         fontSize = 12.sp,
                         color = statusColor,
                         fontWeight = FontWeight.Bold
@@ -215,42 +178,19 @@ fun DeviceCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Battery
                 Column {
+                    Text("Battery", fontSize = 12.sp, color = Color.Gray)
+                    Text("${device.battery}%", fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold, color = PrimaryBlue)
+                }
+                Column {
+                    Text("Last Seen", fontSize = 12.sp, color = Color.Gray)
                     Text(
-                        text = "Battery",
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-                    Text(
-                        text = "${device.battery}%",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = PrimaryBlue
+                        text = device.lastSeenAt?.take(10) ?: "—",
+                        fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryBlue
                     )
                 }
-
-                // Last Update
-                Column {
-                    Text(
-                        text = "Last Update",
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-                    Text(
-                        text = device.last_update.split("T")[0],
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = PrimaryBlue
-                    )
-                }
-
-                // Unpair Button
-                OutlinedButton(
-                    onClick = onUnpair,
-                    modifier = Modifier
-                        .height(36.dp)
-                ) {
+                OutlinedButton(onClick = onUnpair, modifier = Modifier.height(36.dp)) {
                     Text("Unpair", fontSize = 12.sp)
                 }
             }
@@ -259,24 +199,19 @@ fun DeviceCard(
 }
 
 @Composable
-fun PairDeviceDialog(
-    onDismiss: () -> Unit,
-    onPair: () -> Unit,
-    viewModel: DeviceViewModel
-) {
+fun PairDeviceDialog(onDismiss: () -> Unit, onPair: () -> Unit, viewModel: DeviceViewModel) {
     val pairingState by viewModel.pairingState.collectAsState()
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.5f))
-            .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.Center
-    ) {
+    LaunchedEffect(pairingState.isSuccess) {
+        if (pairingState.isSuccess) {
+            viewModel.clearPairingState()
+            onPair()
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier
-                .fillMaxWidth(0.85f)
-                .clickable(enabled = false) {},
+            modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             shape = RoundedCornerShape(16.dp)
         ) {
@@ -284,24 +219,25 @@ fun PairDeviceDialog(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = "Pair New Device",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = PrimaryBlue
-                )
+                Text("Pair New Device", fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold, color = PrimaryBlue)
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = "Enter the PIN from your device",
-                    fontSize = 14.sp,
-                    color = Color.Gray
+                OutlinedTextField(
+                    value = pairingState.nameInput,
+                    onValueChange = { viewModel.updateNameInput(it) },
+                    label = { Text("Device name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // PIN Input Field
+                Text("Enter the PIN from your watch", fontSize = 14.sp, color = Color.Gray)
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 PinInputField(
                     value = pairingState.pinInput,
                     onValueChange = { viewModel.updatePinInput(it) }
@@ -309,11 +245,8 @@ fun PairDeviceDialog(
 
                 if (pairingState.error != null) {
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = pairingState.error ?: "Error",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    Text(pairingState.error ?: "Error", fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.error)
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -324,31 +257,25 @@ fun PairDeviceDialog(
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
-                    ) {
-                        Text("Cancel")
-                    }
+                        modifier = Modifier.weight(1f).height(44.dp)
+                    ) { Text("Cancel") }
 
                     Button(
                         onClick = {
-                            viewModel.pairDevice(pairingState.pinInput)
-                            onPair()
+                            viewModel.pairDevice(pairingState.pinInput, pairingState.nameInput)
                         },
-                        enabled = pairingState.pinInput.length >= 4 && !pairingState.isPairing,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
+                        enabled = pairingState.pinInput.length >= 6
+                                && pairingState.nameInput.isNotBlank()
+                                && !pairingState.isPairing,
+                        modifier = Modifier.weight(1f).height(44.dp)
                     ) {
                         if (pairingState.isPairing) {
                             CircularProgressIndicator(
-                                modifier = Modifier
-                                    .align(Alignment.CenterVertically)
-                                    .padding(end = 8.dp)
+                                modifier = Modifier.width(20.dp).height(20.dp)
                             )
+                        } else {
+                            Text("Pair")
                         }
-                        Text("Pair")
                     }
                 }
             }
@@ -357,39 +284,40 @@ fun PairDeviceDialog(
 }
 
 @Composable
-fun PinInputField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 32.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        repeat(6) { index ->
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(Color(0xFFE8E8E8), RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (index < value.length) value[index].toString() else "•",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (index < value.length) PrimaryBlue else Color.Gray
-                )
+fun PinInputField(value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            repeat(6) { index ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                        .background(Color(0xFFE8E8E8), RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (index < value.length) value[index].toString() else "•",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (index < value.length) PrimaryBlue else Color.Gray
+                    )
+                }
             }
         }
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = value,
+            onValueChange = { input ->
+                if (input.length <= 6) onValueChange(input.filter { it.isDigit() })
+            },
+            label = { Text("PIN (6 digits)") },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+            singleLine = true
+        )
     }
 }
-
-// Size extension for Modifier
-fun Modifier.size(size: androidx.compose.ui.unit.Dp) = this
-    .width(size)
-    .height(size)
-
-

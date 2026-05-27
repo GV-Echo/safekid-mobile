@@ -8,11 +8,10 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.Route
 import javax.inject.Inject
-import javax.inject.Provider // Добавили импорт провайдера
+import javax.inject.Provider
 
 class TokenAuthenticator @Inject constructor(
     private val tokenManager: TokenManager,
-    // Оборачиваем в Provider, чтобы разорвать циклическую зависимость Hilt
     private val authApiServiceProvider: Provider<AuthApiService>
 ) : Authenticator {
     override fun authenticate(route: Route?, response: Response): Request? {
@@ -20,18 +19,14 @@ class TokenAuthenticator @Inject constructor(
 
         return runBlocking {
             try {
-                val refreshRequest = RefreshTokenRequest(refreshToken)
-
-                // Получаем экземпляр сервиса прямо перед использованием
-                val authApiService = authApiServiceProvider.get()
-                val result = authApiService.refreshToken(refreshRequest)
+                val result = authApiServiceProvider.get()
+                    .refreshToken(RefreshTokenRequest(refreshToken))
 
                 if (result.isSuccessful && result.body() != null) {
-                    val authResponse = result.body()!!
-                    tokenManager.saveTokens(authResponse.accessToken, authResponse.refreshToken)
-
+                    val body = result.body()!!
+                    tokenManager.saveTokens(body.accessToken, body.refreshToken)
                     response.request.newBuilder()
-                        .header("Authorization", "Bearer ${authResponse.accessToken}")
+                        .header("Authorization", "Bearer ${body.accessToken}")
                         .build()
                 } else {
                     tokenManager.clearTokens()
